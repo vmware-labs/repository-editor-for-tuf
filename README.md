@@ -84,6 +84,11 @@ This key management solution is preliminary and likely to change in the future.
 
     tufrepo --help
 
+If you want to debug a specific command locally you can have a look at
+`click` documentation about it: https://click.palletsprojects.com/en/8.1.x/testing/.
+It may be  worth setting a temporary folder where you can test your command in
+order to simulate tufrepo behavior.
+
 ## Examples
 
 Note: The tool outputs very little currently: Running `git diff` once in a
