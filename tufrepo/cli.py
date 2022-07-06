@@ -77,7 +77,7 @@ def init(ctx: Context):
     with ctx.obj.repo.edit("root") as root:
         for role in ["root", "timestamp", "snapshot", "targets"]:
             key = ctx.obj.keyring.generate_key()
-            root.add_key(role, key.public)
+            root.add_key(key.public, role)
             ctx.obj.keyring.store_key(role, key)
 
     ctx.obj.repo.init_role("timestamp", period)

@@ -27,7 +27,7 @@ def set_threshold(self: Signed, delegate: str, threshold: int):
 def add_key(self: Signed, delegator: str, delegate: str, key: Key):
     if isinstance(self, Root) or isinstance(self, Targets):
         try:
-            self.add_key(delegate, key)
+            self.add_key(key, delegate)
         except ValueError:
             raise ClickException(f"{delegator} does not delegate to {delegate}")
     else:
@@ -37,7 +37,7 @@ def add_key(self: Signed, delegator: str, delegate: str, key: Key):
 def remove_key(self: Signed, delegator: str, delegate: str, keyid: str):
     if isinstance(self, Root) or isinstance(self, Targets):
         try:
-            self.remove_key(delegate, keyid)
+            self.revoke_key(keyid, delegate)
         except ValueError:
             raise ClickException(f"{delegator} does not delegate to {delegate}")
     else:
