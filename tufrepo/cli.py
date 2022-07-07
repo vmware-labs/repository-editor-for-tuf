@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Optional, Tuple
 
-from tuf.api.metadata import DelegatedRole, Delegations
+from tuf.api.metadata import DelegatedRole, Delegations, Targets
 
 from tufrepo import helpers
 from tufrepo import verifier
 from tufrepo.librepo.keys import Keyring
 from tufrepo.git_repo import GitRepository
-from tufrepo.keys_impl import EnvVarKeyring, InsecureFileKeyring
+from tufrepo.keys_impl import EnvVarKeyring, InsecureFileKeyring, PrivateKey
 
 logger = logging.getLogger("tufrepo")
 
@@ -76,7 +76,7 @@ def init(ctx: Context):
 
     with ctx.obj.repo.edit("root") as root:
         for role in ["root", "timestamp", "snapshot", "targets"]:
-            key = ctx.obj.keyring.generate_key()
+            key: PrivateKey = ctx.obj.keyring.generate_key()
             root.add_key(key.public, role)
             ctx.obj.keyring.store_key(role, key)
 
@@ -222,6 +222,7 @@ def add_target(
 def remove_target(ctx: Context, target_path: str):
     """Remove TARGET from a Targets role ROLE"""
 
+    targets: Targets
     with ctx.obj.repo.edit(ctx.obj.role) as targets:
         del targets.targets[target_path]
     print(f"Removed {target_path} from {ctx.obj.role}.")
@@ -246,6 +247,7 @@ def add_delegation(
     _paths = list(paths) if paths else None
     _prefixes = list(hash_prefixes) if hash_prefixes else None
 
+    targets: Targets
     with ctx.obj.repo.edit(ctx.obj.role) as targets:
         if targets.delegations is None:
             targets.delegations = Delegations({}, {})
@@ -260,5 +262,7 @@ def remove_delegation(
     ctx: Context,
     delegate: str,
 ):
-    with ctx.obj.repo.edit(ctx.obj.role) as targets:
-        del targets.delegations.roles[delegate]
+    tar: Targets
+    with ctx.obj.repo.edit(ctx.obj.role) as tar:
+        if tar.delegations is not None and tar.delegations.roles is not None:
+            del tar.delegations.roles[delegate]

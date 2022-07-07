@@ -14,7 +14,7 @@ def set_threshold(self: Signed, delegate: str, threshold: int):
     if isinstance(self, Root):
         role = self.roles.get(delegate)
     elif isinstance(self, Targets):
-        if self.delegations is not None:
+        if self.delegations is not None and self.delegations.roles is not None:
             role = self.delegations.roles.get(delegate)
     else:
         raise ClickException(f"Not a delegator")
