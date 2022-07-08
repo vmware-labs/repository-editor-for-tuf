@@ -262,6 +262,7 @@ def remove_delegation(
     ctx: Context,
     delegate: str,
 ):
+    """Remove DELEGATE from ROLE"""
     tar: Targets
     with ctx.obj.repo.edit(ctx.obj.role) as tar:
         if tar.delegations is not None and tar.delegations.roles is not None:
