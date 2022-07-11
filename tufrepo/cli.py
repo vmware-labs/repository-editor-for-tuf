@@ -6,7 +6,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional, Tuple
+from typing import Optional, List, Tuple
 
 from tuf.api.metadata import(
     DelegatedRole,
@@ -113,6 +113,40 @@ def verify(ctx: Context, root_hash: Optional[str] = None):
 def snapshot(ctx: Context):
     """Update snapshot and timestamp meta information"""
     ctx.obj.repo.snapshot()
+
+
+@cli.command()
+@click.pass_context
+@click.argument("role")
+def init_succinct_roles(ctx: Context, role: str):
+    """Create a new set of delegated bin files based on the succinct hash bin
+    delegation information in ROLE.
+
+    Note: it's required to call 'tufrepo edit ROLE add_succinct_delegation'
+    command first in order to provide succinct hash bin delegations information
+    first."""
+
+    targets: Targets
+    with ctx.obj.repo.edit(role) as targets:
+        if targets.delegations is None or targets.delegations.succinct_roles is None:
+            raise ValueError(
+                "'ROLE' doesn't contain information about succinct delegations"
+            )
+
+        full_keys_info: List[PrivateKey] = []
+        for _ in range(targets.delegations.succinct_roles.threshold):
+            new_key: PrivateKey = ctx.obj.keyring.generate_key()
+            full_keys_info.append(new_key)
+            helpers.add_key(targets, role, None, new_key.public)
+
+        for bin_name in targets.delegations.succinct_roles.get_roles():
+            # Store all generated keys for delegations for each of the bins.
+            for key in full_keys_info:
+                ctx.obj.keyring.store_key(bin_name, key)
+
+            # Use expiry period of 1 year for everything
+            period = int(timedelta(days=365).total_seconds())
+            ctx.obj.repo.init_role(bin_name, period)
 
 
 # ------------------------------- edit commands --------------------------------
