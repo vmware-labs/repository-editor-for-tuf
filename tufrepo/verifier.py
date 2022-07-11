@@ -9,11 +9,41 @@ from click.exceptions import ClickException
 from securesystemslib.hash import digest_fileobject
 from tuf.api.exceptions import ExpiredMetadataError, RepositoryError
 from tuf.api.metadata import Snapshot, Targets
-from tuf.ngclient import Updater
+from tuf.ngclient.updater import Updater
 
 from tufrepo.filesystem_fetcher import FilesystemFetcher
 
 logger = logging.getLogger("tufrepo")
+
+
+def add_if_validated(
+    updater: Updater, delegators: List, role: str, delegator: str
+):
+    """Verify a given 'role' and if it has been successfully verified add it to
+    the 'delegators'."""
+    assert updater._trusted_set.snapshot is not None
+    snapshot: Snapshot = updater._trusted_set.snapshot.signed
+
+    try:
+        metainfo = snapshot.meta[f"{role}.json"]
+    except KeyError:
+        raise ClickException(f"Snapshot is invalid: {role} not found in snapshot")
+
+    filename = f"{metainfo.version}.{role}.json"
+    try:
+        with open(filename, "rb") as file:
+            data = file.read()
+    except FileNotFoundError:
+        raise ClickException(f"Snapshot is invalid: file {filename} not found")
+
+    logger.debug("Verifying %s", role)
+    try:
+        updater._trusted_set.update_delegated_targets(data, role, delegator)
+        delegators.append((role, updater._trusted_set[role].signed))
+    except ExpiredMetadataError as e:
+        logger.warning("Delegated target %s has expired", role)
+    except RepositoryError as e:
+        raise ClickException(f"Delegated target {role} fails to validate") from e
 
 
 ### verify repository contents
@@ -47,7 +77,6 @@ def verify_repo(root_hash: Optional[str]):
 
     # recursively verify all targets in delegation tree
     # This code is pretty horrible
-    snapshot: Snapshot = updater._trusted_set.snapshot.signed
     delegators: List[Tuple[str, Targets]] = [
         ("targets", updater._trusted_set["targets"].signed)
     ]
@@ -56,39 +85,14 @@ def verify_repo(root_hash: Optional[str]):
         if delegator.delegations is None:
             continue
 
-        for role in delegator.delegations.roles.values():
-            try:
-                metainfo = snapshot.meta[f"{role.name}.json"]
-            except KeyError:
-                raise ClickException(
-                    f"Snapshot is invalid: {role.name} not found in snapshot"
-                )
-            filename = f"{metainfo.version}.{role.name}.json"
-            try:
-                with open(filename, "rb") as file:
-                    role_data = file.read()
-            except FileNotFoundError:
-                raise ClickException(
-                    f"Snapshot is invalid: file {filename} not found"
-                )
-            else:
-                logger.debug("Verifying %s", role.name)
-                try:
-                    updater._trusted_set.update_delegated_targets(
-                        role_data, role.name, delegator_name
-                    )
-                    delegators.append(
-                        (role.name, updater._trusted_set[role.name].signed)
-                    )
-                except ExpiredMetadataError as e:
-                    logger.warning(
-                        "Delegated target %s has expired",
-                        role.name
-                    )
-                except RepositoryError as e:
-                    raise ClickException(
-                        f"Delegated target {role.name} fails to validate"
-                    ) from e
+        if delegator.delegations.roles is not None:
+            for role in delegator.delegations.roles.values():
+                add_if_validated(updater, delegators, role.name, delegator_name)
+
+        if delegator.delegations.succinct_roles is not None:
+            for bin_name in delegator.delegations.succinct_roles.get_roles():
+                add_if_validated(updater, delegators, bin_name, delegator_name)
+
     deleg_count = len(updater._trusted_set) - 4
 
     print(f"Metadata with {deleg_count} delegated targets verified")

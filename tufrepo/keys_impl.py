@@ -53,11 +53,17 @@ class Keyring(DefaultDict[str, Set[PrivateKey]], metaclass=abc.ABCMeta):
             elif isinstance(md.signed, Targets):
                 if md.signed.delegations is None:
                     continue
-                for role in md.signed.delegations.roles.values():
-                    for keyid in role.keyids:
-                        self._load_key(
-                            role.name, md.signed.delegations.keys[keyid]
-                        )
+                if md.signed.delegations.roles is not None:
+                    for role in md.signed.delegations.roles.values():
+                        for keyid in role.keyids:
+                            self._load_key(
+                                role.name, md.signed.delegations.keys[keyid]
+                            )
+                elif md.signed.delegations.succinct_roles is not None:
+                    for bin in md.signed.delegations.succinct_roles.get_roles():
+                        for keyid in  md.signed.delegations.keys.keys():
+                            self._load_key(bin, md.signed.delegations.keys[keyid])
+
 
 class InsecureFileKeyring(Keyring):
     """Private key management in plain text file
