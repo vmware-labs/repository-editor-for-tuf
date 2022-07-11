@@ -248,18 +248,22 @@ def add_delegation(
     paths: Tuple[str],
     hash_prefixes: Tuple[str],
 ):
-    """Delegate from ROLE to DELEGATE"""
+    """Delegate from ROLE to DELEGATE.
+
+    Note: if ROLE contains succinct hash bin delegations it will be overwritten.
+    """
 
     _paths = list(paths) if paths else None
     _prefixes = list(hash_prefixes) if hash_prefixes else None
 
-    targets: Targets
-    with ctx.obj.repo.edit(ctx.obj.role) as targets:
-        if targets.delegations is None:
-            targets.delegations = Delegations({}, {})
+    tar: Targets
+    with ctx.obj.repo.edit(ctx.obj.role) as tar:
+        if tar.delegations is None or tar.delegations.succinct_roles is not None:
+            tar.delegations = Delegations({}, {})
 
         role = DelegatedRole(delegate, [], 1, terminating, _paths, _prefixes)
-        targets.delegations.roles[role.name] = role
+        tar.delegations.roles[role.name] = role
+
 
 @edit.command()
 @click.pass_context
