@@ -3,11 +3,17 @@
 
 import click
 import logging
+import math
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Optional, Tuple
 
-from tuf.api.metadata import DelegatedRole, Delegations, Targets
+from tuf.api.metadata import(
+    DelegatedRole,
+    Delegations,
+    SuccinctRoles,
+    Targets
+)
 
 from tufrepo import helpers
 from tufrepo import verifier
@@ -254,6 +260,39 @@ def add_delegation(
 
         role = DelegatedRole(delegate, [], 1, terminating, _paths, _prefixes)
         targets.delegations.roles[role.name] = role
+
+@edit.command()
+@click.pass_context
+@click.argument("number", type=int)
+@click.option(
+    "--name-prefix",
+    help="Name prefix for all bins.",
+    type=str,
+    default="bin",
+    show_default=True
+)
+def add_succinct_delegation(
+    ctx: Context,
+    number: int,
+    name_prefix: str,
+):
+    """Add succinct hash bin delegation to a ROLE representing NUMBER of bins.
+
+    NUMBER must be a power of 2, otherwise, an error will be raised.
+
+    Note: if ROLE contains other role delegations they will be overwritten.
+    """
+    if number < 2:
+        raise ValueError("Number must be at least 2")
+    if number % 2 != 0:
+        raise ValueError("NUMBER must be a power of 2")
+    # Calculate bit_length based on the number of the given succinct_bin_num.
+    bit_length = int(math.log2(number))
+    targets: Targets
+    with ctx.obj.repo.edit(ctx.obj.role) as targets:
+        succinct_roles =  SuccinctRoles([], 1, bit_length, name_prefix)
+        targets.delegations = Delegations({}, None, succinct_roles)
+
 
 @edit.command()
 @click.pass_context
