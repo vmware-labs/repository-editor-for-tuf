@@ -40,7 +40,9 @@ class TestCLI(unittest.TestCase):
         if expected_out is not None:
            self.assertEqual(proc.stdout, expected_out)
         if expected_err is not None:
-           self.assertEqual(proc.stderr, expected_err)
+            if proc.stderr != expected_err:
+                print(proc.stderr)
+            self.assertEqual(proc.stderr, expected_err)
         self.assertEqual(proc.returncode, 0)
 
         return proc
