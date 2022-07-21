@@ -1,3 +1,4 @@
 securesystemslib[pynacl]
-tuf==1.1.0
+# Build from source the latest changes in the develop branch of python-tuf.
+git+https://github.com/theupdateframework/python-tuf.git@develop
 click
